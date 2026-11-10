@@ -130,7 +130,11 @@
   .items { list-style: none; margin: 18px 0 0; padding: 0; display: flex; flex-direction: column; }
   .item { display: flex; gap: 12px; justify-content: space-between; align-items: flex-start; padding: 12px 0; }
   .item + .item { border-top: 1px solid var(--line); }
+  .item-body { display: flex; gap: 12px; align-items: flex-start; min-width: 0; }
   .item-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .thumb { flex-shrink: 0; width: 64px; height: 64px; border-radius: 10px; border: 1px solid var(--line); background: #fff; overflow: hidden; display: block; }
+  .thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .item-wait { color: var(--muted); font-size: .85rem; font-style: italic; }
   .item-t { font-weight: 700; overflow-wrap: anywhere; }
   .item-o { color: var(--muted); font-size: .92rem; overflow-wrap: anywhere; }
   .item-link { color: var(--accent); font-weight: 600; font-size: .92rem; text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
@@ -181,7 +185,7 @@
       <div class="field wide"><label for="ev-local">Local</label><input id="ev-local" maxlength="80" autocomplete="off" placeholder="Onde e a que horas"></div>
       <div class="field wide"><label for="ev-obs-in">Combinados</label><textarea id="ev-obs-in" maxlength="300" placeholder="Regras do grupo, prazo para comprar, como entregar"></textarea></div>
       <h3>Códigos de afiliado</h3>
-      <p class="hint wide">Cole só os parâmetros do seu link de afiliado em cada loja, sem o endereço do produto (por exemplo, tag=seucodigo-20 na Amazon). Loja em branco: vale o código padrão do arquivo firebase-config.js.</p>
+      <p class="hint wide">Cole só os parâmetros do seu link de afiliado em cada loja, sem o endereço do produto (por exemplo, tag=seucodigo-20 na Amazon). Os códigos que já estão valendo aparecem em cinza dentro de cada campo. Deixe em branco para manter; preencha só se quiser trocar.</p>
       <div class="field"><label for="af-mercadolivre">Mercado Livre</label><input id="af-mercadolivre" maxlength="200" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="parâmetros do link"></div>
       <div class="field"><label for="af-amazon">Amazon</label><input id="af-amazon" maxlength="200" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="tag=seucodigo-20"></div>
       <div class="field"><label for="af-shopee">Shopee</label><input id="af-shopee" maxlength="200" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="parâmetros do link"></div>
@@ -228,6 +232,7 @@
           <h3 id="item-h">Novo presente</h3>
           <div class="field wide"><label for="it-titulo">O que você quer ganhar</label><input id="it-titulo" maxlength="80" autocomplete="off" placeholder="Ex.: caneca térmica, livro, meia"></div>
           <div class="field wide"><label for="it-link">Link do produto (opcional)</label><input id="it-link" type="text" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="500" placeholder="Cole o endereço do produto"><p class="hint">Aceitamos Mercado Livre, Amazon, Shopee e Shein. Links curtos de compartilhamento abrem normalmente, mas não levam o código de afiliado.</p></div>
+          <div class="field wide"><label for="it-img">Imagem do produto (opcional)</label><input id="it-img" type="text" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="1000" placeholder="Deixe em branco para buscar sozinho"><p class="hint">O site tenta pegar a foto do anúncio sozinho. Se não aparecer, segure o dedo (ou clique com o botão direito) na foto do anúncio, escolha "Copiar endereço da imagem" e cole aqui.</p></div>
           <fieldset class="wide" id="it-loja">
             <legend>Em qual loja fica esse link?</legend>
             <div class="chips">
@@ -258,7 +263,7 @@
 <script type="module">
   var FIREBASE_VERSION = '10.12.2';
   var $ = function (id) { return document.getElementById(id); };
-  var S = { uid: null, email: '', displayName: '', authReady: false, isAdmin: false, people: new Map(), config: null, loaded: false, editing: null, confirmId: null, prefilled: false, affDefault: {} };
+  var S = { uid: null, email: '', displayName: '', authReady: false, isAdmin: false, people: new Map(), config: null, loaded: false, editing: null, confirmId: null, prefilled: false, affDefault: {}, fetching: new Set() };
   var api = null;   /* preenchido quando o Firebase conecta */
   var PSEUDO_DOMAIN = '';
   var chain = Promise.resolve();
@@ -407,7 +412,12 @@
     $('ev-local').value = c.local || '';
     $('ev-obs-in').value = c.obs || '';
     var af = c.afiliados || {};
-    STORE_KEYS.forEach(function (k) { $('af-' + k).value = typeof af[k] === 'string' ? af[k] : ''; });
+    STORE_KEYS.forEach(function (k) {
+      var inp = $('af-' + k);
+      inp.value = typeof af[k] === 'string' ? af[k] : '';
+      var pad = typeof S.affDefault[k] === 'string' ? S.affDefault[k].trim() : '';
+      inp.placeholder = pad ? 'Em uso (padrão): ' + pad : 'sem código';
+    });
   }
   $('ev-toggle').addEventListener('click', function () {
     fillEventForm();
@@ -470,7 +480,27 @@
       a.textContent = (key ? 'Ver ' + STORES[key].prep + ' ' + STORES[key].nome : hostOf(href)) + ' ↗';
       main.append(a);
     }
-    li.append(main);
+    var body = document.createElement('div');
+    body.className = 'item-body';
+    var img = normImg(it.img);
+    if (img) {
+      var th = document.createElement(href ? 'a' : 'span');
+      th.className = 'thumb';
+      if (href) { th.href = a.href; th.target = '_blank'; th.rel = a.rel; th.tabIndex = -1; th.setAttribute('aria-hidden', 'true'); }
+      var im = document.createElement('img');
+      im.src = img; im.alt = ''; im.loading = 'lazy'; im.decoding = 'async'; im.referrerPolicy = 'no-referrer';
+      im.addEventListener('error', function () { th.remove(); });
+      th.append(im);
+      body.append(th);
+    }
+    if (mine && S.fetching.has(it.id)) {
+      var w = document.createElement('span');
+      w.className = 'item-wait';
+      w.textContent = 'Buscando imagem do anúncio…';
+      main.append(w);
+    }
+    body.append(main);
+    li.append(body);
     if (mine) {
       var act = document.createElement('div');
       act.className = 'item-actions';
@@ -500,6 +530,7 @@
     $('it-titulo').value = '';
     $('it-link').value = '';
     $('it-obs').value = '';
+    $('it-img').value = '';
     document.querySelectorAll('input[name="loja"]').forEach(function (r) { r.checked = false; });
     $('item-h').textContent = 'Novo presente';
     $('it-submit').textContent = 'Adicionar à lista';
@@ -512,6 +543,7 @@
     $('it-titulo').value = it.titulo || '';
     $('it-link').value = it.link || '';
     $('it-obs').value = it.obs || '';
+    $('it-img').value = it.img || '';
     var lojaAtual = it.loja || detectStore(normUrl(it.link) || '');
     document.querySelectorAll('input[name="loja"]').forEach(function (r) { r.checked = r.value === lojaAtual; });
     $('item-h').textContent = 'Editar presente';
@@ -557,19 +589,92 @@
       }
     }
     var obs = $('it-obs').value.trim();
+    var imgRaw = $('it-img').value.trim();
+    var img = imgRaw ? normImg(imgRaw) : '';
+    if (imgRaw && !img) { toast('Esse endereço de imagem não parece válido. Copie o endereço da foto, não da página.'); $('it-img').focus(); return; }
     var d = myData();
     d.nome = nome;
     var idx = S.editing ? d.itens.findIndex(function (x) { return x.id === S.editing; }) : -1;
+    var id;
     if (idx >= 0) {
-      d.itens[idx] = { id: S.editing, titulo: titulo, link: link, loja: loja, obs: obs };
+      id = S.editing;
+      d.itens[idx] = { id: id, titulo: titulo, link: link, loja: loja, obs: obs, img: img };
     } else {
       if (d.itens.length >= MAX_ITENS) { toast('Cada lista aceita até ' + MAX_ITENS + ' presentes.'); return; }
-      d.itens.push({ id: newId(), titulo: titulo, link: link, loja: loja, obs: obs });
+      id = newId();
+      d.itens.push({ id: id, titulo: titulo, link: link, loja: loja, obs: obs, img: img });
     }
     var editing = idx >= 0;
     resetItemForm();
     saveMine(d, editing ? 'Presente atualizado.' : 'Presente adicionado.');
+    if (link && !img) autoImage(id, link, loja);
   });
+
+  /* ---------- imagem do produto ---------- */
+  function normImg(raw) {
+    var h = normUrl(raw);
+    if (!h) return '';
+    if (/^http:/i.test(h)) h = 'https:' + h.slice(5);
+    return h.length <= 1000 ? h : '';
+  }
+  /* Carrega a imagem para ver se ela existe de verdade (descarta pixel vazio e logos minúsculos) */
+  function probeImg(src, ms) {
+    return new Promise(function (res) {
+      var im = new Image(), done = false;
+      var fim = function (ok) { if (done) return; done = true; res(ok ? src : ''); };
+      im.referrerPolicy = 'no-referrer';
+      im.onload = function () { fim(im.naturalWidth >= 80 && im.naturalHeight >= 80); };
+      im.onerror = function () { fim(false); };
+      setTimeout(function () { fim(false); }, ms || 8000);
+      im.src = src;
+    });
+  }
+  function amazonImg(link) {
+    var m = /\/(?:dp|gp\/product|gp\/aw\/d)\/([A-Za-z0-9]{10})/.exec(link);
+    return m ? 'https://images-na.ssl-images-amazon.com/images/P/' + m[1].toUpperCase() + '.01._SCLZZZZZZZ_.jpg' : '';
+  }
+  function microlink(link) {
+    var ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, 12000);
+    return fetch('https://api.microlink.io/?url=' + encodeURIComponent(link), ctrl ? { signal: ctrl.signal } : {})
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        var d = j && j.status === 'success' && j.data;
+        var u = d && ((d.image && d.image.url) || (d.screenshot && d.screenshot.url));
+        return u ? normImg(u) : '';
+      })
+      .catch(function () { return ''; })
+      .finally(function () { clearTimeout(timer); });
+  }
+  async function findImage(link, loja) {
+    var key = loja || detectStore(link);
+    if (key === 'amazon') {
+      var a = amazonImg(link);
+      if (a && await probeImg(a)) return a;
+    }
+    var u = await microlink(link);
+    if (u && await probeImg(u)) return u;
+    return '';
+  }
+  function autoImage(id, link, loja) {
+    var uid = S.uid;
+    S.fetching.add(id);
+    renderMine();
+    findImage(link, loja).then(function (img) {
+      S.fetching.delete(id);
+      if (S.uid !== uid) return;
+      var d = myData();
+      var it = d.itens.filter(function (x) { return x.id === id; })[0];
+      /* só grava se o presente ainda existe, com o mesmo link e sem imagem */
+      if (!img || !it || it.link !== link || it.img) {
+        renderMine();
+        if (!img && it && it.link === link && !it.img) toast('Não achei a foto do anúncio. Você pode colar o endereço da imagem em Editar.');
+        return;
+      }
+      it.img = img;
+      saveMine(d);
+    });
+  }
 
   /* ---------- nome ---------- */
   function updateNameBtn() {
