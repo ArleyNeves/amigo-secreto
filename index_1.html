@@ -1,0 +1,714 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Listas do Amigo Secreto</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=DM+Sans:wght@400;500;700&display=swap">
+<style>
+  /* Layout: coluna única. Faixa com data e valor no topo, depois o cartão de edição de quem abriu, depois a grade com as listas dos outros. */
+  :root {
+    --bg: #F3F4F9;
+    --surface: #FFFFFF;
+    --ink: #1D2440;
+    --muted: #5B6285;
+    --line: #DDE0EE;
+    --accent: #D6335F;
+    --on-accent: #FFFFFF;
+    --tint: #FCE6EC;
+    --focus: #2B5FD9;
+    --f-display: 'Bricolage Grotesque', 'Trebuchet MS', system-ui, sans-serif;
+    --f-body: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121528;
+      --surface: #1B1F3A;
+      --ink: #E9EBF8;
+      --muted: #A3A9CC;
+      --line: #2C3157;
+      --accent: #FF6F91;
+      --on-accent: #1A0A10;
+      --tint: #3A1C2B;
+      --focus: #8DB1FF;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121528;
+    --surface: #1B1F3A;
+    --ink: #E9EBF8;
+    --muted: #A3A9CC;
+    --line: #2C3157;
+    --accent: #FF6F91;
+    --on-accent: #1A0A10;
+    --tint: #3A1C2B;
+    --focus: #8DB1FF;
+    color-scheme: dark;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 400 16px/1.5 var(--f-body);
+    padding-block: clamp(20px, 5vw, 48px);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .wrap { max-width: 56rem; margin: 0 auto; display: flex; flex-direction: column; gap: clamp(28px, 5vw, 44px); }
+  h1, h2, h3 { font-family: var(--f-display); margin: 0; text-wrap: balance; line-height: 1.1; letter-spacing: -0.01em; }
+  h1 { font-size: clamp(2.25rem, 7vw, 3.5rem); font-weight: 800; }
+  h2 { font-size: 1.5rem; font-weight: 700; }
+  h3 { font-size: 1.1rem; font-weight: 700; }
+  .eyebrow { margin: 0 0 8px; font-size: .78rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+  .lede { margin: 12px 0 0; max-width: 40rem; color: var(--muted); font-size: 1.05rem; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+  .event { display: flex; flex-direction: column; gap: 14px; padding-block: 18px; border-block: 1px solid var(--line); }
+  .facts { display: flex; flex-wrap: wrap; gap: 12px 40px; margin: 0; }
+  .facts > div { min-width: 0; }
+  .facts dt { font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  .facts dd { margin: 2px 0 0; font-weight: 600; font-size: 1.05rem; overflow-wrap: anywhere; }
+  .facts dd.todo { color: var(--muted); font-weight: 400; }
+  .evobs { margin: 0; color: var(--muted); max-width: 44rem; overflow-wrap: anywhere; }
+  .event-actions { display: flex; }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: clamp(16px, 3vw, 24px); }
+  #mine-card { border: 2px solid var(--accent); }
+  .sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+  .count { color: var(--muted); font-size: .9rem; font-variant-numeric: tabular-nums; }
+
+  fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+  legend { padding: 0; font-size: .85rem; font-weight: 600; margin-bottom: 6px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { position: relative; display: inline-flex; }
+  .chip input { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; margin: 0; padding: 0; border: 0; opacity: 0; cursor: pointer; }
+  .chip span { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 16px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); font-weight: 600; font-size: .92rem; }
+  .chip input:checked + span { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .chip input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: 2px; }
+  .hint { margin: 0; color: var(--muted); font-size: .85rem; }
+  .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  label { font-size: .85rem; font-weight: 600; }
+  input, textarea {
+    font: inherit; font-size: 16px; color: var(--ink); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-height: 44px; width: 100%;
+  }
+  textarea { resize: vertical; min-height: 72px; }
+  input::placeholder, textarea::placeholder { color: var(--muted); opacity: .85; }
+
+  .btn {
+    font: inherit; font-weight: 700; font-size: .95rem; min-height: 44px; padding: 10px 18px;
+    border-radius: 10px; border: 1px solid var(--accent); background: var(--accent); color: var(--on-accent); cursor: pointer;
+  }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+  .btn.small { min-height: 36px; padding: 6px 12px; font-size: .85rem; }
+  .btn.warn { background: var(--tint); border-color: var(--accent); color: var(--ink); }
+
+  .row-name { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+  .row-name .field { flex: 1 1 14rem; }
+
+  .items { list-style: none; margin: 18px 0 0; padding: 0; display: flex; flex-direction: column; }
+  .item { display: flex; gap: 12px; justify-content: space-between; align-items: flex-start; padding: 12px 0; }
+  .item + .item { border-top: 1px solid var(--line); }
+  .item-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .item-t { font-weight: 700; overflow-wrap: anywhere; }
+  .item-o { color: var(--muted); font-size: .92rem; overflow-wrap: anywhere; }
+  .item-link { color: var(--accent); font-weight: 600; font-size: .92rem; text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
+  .item-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .empty { color: var(--muted); margin: 14px 0 0; }
+
+  .formgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .formgrid h3, .formgrid .wide, .form-actions { grid-column: 1 / -1; }
+  .form-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  #item-form { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--line); }
+  #ev-form { padding-top: 4px; }
+  @media (max-width: 600px) { .formgrid { grid-template-columns: 1fr; } }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); gap: 16px; align-items: start; }
+  .person { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .person-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .person-head h3 { overflow-wrap: anywhere; }
+  .meta { color: var(--muted); font-size: .85rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .person .items { margin-top: 0; }
+  .foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--muted); font-size: .8rem; flex-wrap: wrap; }
+
+  .notice { background: var(--tint); border-radius: 10px; padding: 12px 14px; }
+  .status { color: var(--muted); margin: 0; }
+  .toast {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px)); max-width: calc(100% - 32px);
+    background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-weight: 600; z-index: 20;
+  }
+</style>
+
+<main class="wrap">
+  <header>
+    <p class="eyebrow">Lista de presentes</p>
+    <h1>Amigo Secreto</h1>
+    <p class="lede">Escreva o que você gostaria de ganhar e deixe o link da loja. Quem tirar você consulta aqui, sem procurar no meio das mensagens do grupo.</p>
+    <p id="aff-note" class="hint" style="margin-top:10px;max-width:40rem" hidden>Os links de loja usam o código de afiliado do organizador. Se você comprar por eles, ele recebe uma comissão e o preço não muda para você.</p>
+  </header>
+
+  <section class="event" aria-labelledby="ev-h">
+    <h2 id="ev-h" class="sr">Detalhes do amigo secreto</h2>
+    <dl id="ev-facts" class="facts"></dl>
+    <p id="ev-obs" class="evobs" hidden></p>
+    <div class="event-actions"><button id="ev-toggle" class="btn ghost small" type="button" hidden>Editar detalhes</button></div>
+    <form id="ev-form" class="formgrid" hidden>
+      <div class="field"><label for="ev-data">Data da revelação</label><input id="ev-data" type="date"></div>
+      <div class="field"><label for="ev-valor">Valor sugerido</label><input id="ev-valor" maxlength="30" autocomplete="off" placeholder="R$ 50"></div>
+      <div class="field wide"><label for="ev-local">Local</label><input id="ev-local" maxlength="80" autocomplete="off" placeholder="Onde e a que horas"></div>
+      <div class="field wide"><label for="ev-obs-in">Combinados</label><textarea id="ev-obs-in" maxlength="300" placeholder="Regras do grupo, prazo para comprar, como entregar"></textarea></div>
+      <h3>Códigos de afiliado</h3>
+      <p class="hint wide">Cole só os parâmetros do seu link de afiliado em cada loja, sem o endereço do produto (por exemplo, tag=seucodigo-20 na Amazon). Loja em branco: o link segue sem código.</p>
+      <div class="field"><label for="af-mercadolivre">Mercado Livre</label><input id="af-mercadolivre" maxlength="200" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="parâmetros do link"></div>
+      <div class="field"><label for="af-amazon">Amazon</label><input id="af-amazon" maxlength="200" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="tag=seucodigo-20"></div>
+      <div class="field"><label for="af-shopee">Shopee</label><input id="af-shopee" maxlength="200" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="parâmetros do link"></div>
+      <div class="field"><label for="af-shein">Shein</label><input id="af-shein" maxlength="200" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="parâmetros do link"></div>
+      <div class="form-actions">
+        <button class="btn" type="submit">Salvar detalhes</button>
+        <button class="btn ghost" id="ev-cancel" type="button">Cancelar</button>
+      </div>
+    </form>
+  </section>
+
+  <section aria-labelledby="mine-h">
+    <div class="sec-head"><h2 id="mine-h">Sua lista</h2><span id="mine-count" class="count"></span></div>
+    <div id="mine-card" class="card">
+      <p id="mine-loading" class="status">Abrindo sua lista…</p>
+      <div id="mine-notice" class="notice" hidden></div>
+      <div id="mine-editor" hidden>
+        <div class="row-name">
+          <div class="field"><label for="nome">Seu nome</label><input id="nome" maxlength="40" autocomplete="off" placeholder="Como o pessoal te chama"></div>
+          <button id="nome-save" class="btn" type="button">Entrar na lista</button>
+        </div>
+        <ul id="mine-items" class="items"></ul>
+        <p id="mine-empty" class="empty">Sua lista ainda está vazia. Tamanho, cor e onde comprar ajudam quem vai te presentear.</p>
+        <form id="item-form" class="formgrid">
+          <h3 id="item-h">Novo presente</h3>
+          <div class="field wide"><label for="it-titulo">O que você quer ganhar</label><input id="it-titulo" maxlength="80" autocomplete="off" placeholder="Ex.: caneca térmica, livro, meia"></div>
+          <div class="field wide"><label for="it-link">Link do produto (opcional)</label><input id="it-link" type="text" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="500" placeholder="Cole o endereço do produto"><p class="hint">Aceitamos Mercado Livre, Amazon, Shopee e Shein. Links curtos de compartilhamento abrem normalmente, mas não levam o código de afiliado.</p></div>
+          <fieldset class="wide" id="it-loja">
+            <legend>Em qual loja fica esse link?</legend>
+            <div class="chips">
+              <label class="chip"><input type="radio" name="loja" value="mercadolivre"><span>Mercado Livre</span></label>
+              <label class="chip"><input type="radio" name="loja" value="amazon"><span>Amazon</span></label>
+              <label class="chip"><input type="radio" name="loja" value="shopee"><span>Shopee</span></label>
+              <label class="chip"><input type="radio" name="loja" value="shein"><span>Shein</span></label>
+            </div>
+          </fieldset>
+          <div class="field wide"><label for="it-obs">Detalhes (opcional)</label><input id="it-obs" maxlength="160" autocomplete="off" placeholder="Tamanho, cor, modelo"></div>
+          <div class="form-actions">
+            <button id="it-submit" class="btn" type="submit">Adicionar à lista</button>
+            <button id="it-cancel" class="btn ghost" type="button" hidden>Cancelar edição</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="all-h">
+    <div class="sec-head"><h2 id="all-h">Quem já está na lista</h2><span id="count" class="count"></span></div>
+    <p id="all-status" class="status">Carregando as listas…</p>
+    <div id="all-grid" class="grid"></div>
+  </section>
+</main>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var S = { uid: null, canWrite: null, isAdmin: false, isOwner: false, people: new Map(), config: null, loaded: false, editing: null, confirmId: null };
+  var db = null;
+  var chain = Promise.resolve();
+  var MAX_ITENS = 30;
+
+  /* ---------- utilidades ---------- */
+  var toastTimer;
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.hidden = true; }, 3800);
+  }
+  function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+  /* '' = vazio, null = inválido, string = endereço completo */
+  function normUrl(raw) {
+    raw = (raw || '').trim();
+    if (!raw) return '';
+    if (!/^https?:\/\//i.test(raw)) raw = 'https://' + raw;
+    try {
+      var u = new URL(raw);
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+      if (u.hostname.indexOf('.') < 0) return null;
+      return u.href;
+    } catch (e) { return null; }
+  }
+  function hostOf(href) {
+    try { return new URL(href).hostname.replace(/^www\./, ''); } catch (e) { return 'link'; }
+  }
+  var STORES = {
+    mercadolivre: { nome: 'Mercado Livre', prep: 'no', de: 'do Mercado Livre', hosts: ['mercadolivre.com.br', 'mercadolivre.com'], short: ['meli.la'], keep: ['variation'] },
+    amazon: { nome: 'Amazon', prep: 'na', de: 'da Amazon', hosts: ['amazon.com.br'], short: ['amzn.to', 'a.co'] },
+    shopee: { nome: 'Shopee', prep: 'na', de: 'da Shopee', hosts: ['shopee.com.br'], short: ['shope.ee'] },
+    shein: { nome: 'Shein', prep: 'na', de: 'da Shein', hosts: ['shein.com', 'shein.com.br'], short: ['shein.top'] }
+  };
+  var STORE_KEYS = ['mercadolivre', 'amazon', 'shopee', 'shein'];
+  function hostIn(host, list) {
+    return list.some(function (h) { return host === h || host.endsWith('.' + h); });
+  }
+  function detectStore(href) {
+    if (!href) return '';
+    var host;
+    try { host = new URL(href).hostname.toLowerCase(); } catch (e) { return ''; }
+    for (var i = 0; i < STORE_KEYS.length; i++) {
+      var st = STORES[STORE_KEYS[i]];
+      if (hostIn(host, st.hosts) || hostIn(host, st.short)) return STORE_KEYS[i];
+    }
+    return '';
+  }
+  function isShortLink(key, u) {
+    if (hostIn(u.hostname.toLowerCase(), STORES[key].short)) return true;
+    return key === 'mercadolivre' && /^\/(sec|social)\//.test(u.pathname);
+  }
+  function affParams(key) {
+    var a = S.config && S.config.afiliados;
+    var v = a && typeof a[key] === 'string' ? a[key] : '';
+    return v.trim().replace(/^[?&]+/, '');
+  }
+  function anyAff() {
+    return STORE_KEYS.some(function (k) { return !!affParams(k); });
+  }
+  /* Endereço final do botão: com código configurado, limpa os rastreios colados e aplica o código do organizador */
+  function finalUrl(key, href) {
+    var u;
+    try { u = new URL(href); } catch (e) { return { href: href, tagged: false }; }
+    var extra = affParams(key);
+    if (!extra || detectStore(href) !== key || isShortLink(key, u)) return { href: href, tagged: false };
+    var path = u.pathname;
+    if (key === 'amazon') {
+      var m = /\/(?:dp|gp\/product)\/([A-Za-z0-9]{10})/.exec(path);
+      if (m) path = '/dp/' + m[1];
+    }
+    var kept = [];
+    (STORES[key].keep || []).forEach(function (p) {
+      var v = u.searchParams.get(p);
+      if (v !== null) kept.push(encodeURIComponent(p) + '=' + encodeURIComponent(v));
+    });
+    return { href: u.origin + path + '?' + kept.concat([extra]).join('&'), tagged: true };
+  }
+  /* END-AFF */
+  function fmtDate(s) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || '');
+    if (!m) return s || '';
+    var d = new Date(+m[1], +m[2] - 1, +m[3]);
+    return d.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+  }
+  function fmtShort(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' });
+  }
+  function plural(n, um, varios) { return n + ' ' + (n === 1 ? um : varios); }
+
+  function explain(e) {
+    var c = e && e.code;
+    if (c === 'invalid_argument') return 'Você não tem permissão para editar aqui. Peça ao organizador para liberar a edição.';
+    if (c === 'quota_exceeded') return 'O limite de dados do site foi atingido. Avise o organizador.';
+    if (c === 'resource_exhausted') return 'Muitas ações seguidas. Espere um instante e tente de novo.';
+    return 'Não foi possível salvar agora. Tente de novo.';
+  }
+  function attempt(fn) {
+    return fn().catch(function (e) {
+      if (e && e.code === 'unavailable') {
+        return new Promise(function (r) { setTimeout(r, 600 + Math.random() * 600); }).then(fn);
+      }
+      throw e;
+    });
+  }
+  function write(fn, okMsg) {
+    chain = chain.then(function () { return attempt(fn); }).then(function () {
+      if (okMsg) toast(okMsg);
+    }).catch(function (e) {
+      if (e && e.code === 'invalid_argument' && S.canWrite === null) { S.canWrite = false; render(); }
+      toast(explain(e));
+    });
+    return chain;
+  }
+
+  /* ---------- evento ---------- */
+  function renderEvent() {
+    var c = S.config || {};
+    var facts = $('ev-facts');
+    facts.textContent = '';
+    [['Revelação', c.data ? fmtDate(c.data) : ''], ['Valor sugerido', c.valor || ''], ['Local', c.local || '']].forEach(function (p) {
+      var wrap = document.createElement('div');
+      var dt = document.createElement('dt'); dt.textContent = p[0];
+      var dd = document.createElement('dd');
+      if (p[1]) { dd.textContent = p[1]; } else { dd.textContent = 'A definir'; dd.className = 'todo'; }
+      wrap.append(dt, dd);
+      facts.append(wrap);
+    });
+    var obs = $('ev-obs');
+    obs.textContent = c.obs || '';
+    obs.hidden = !c.obs;
+    $('ev-toggle').hidden = !S.isAdmin || !$('ev-form').hidden;
+    $('aff-note').hidden = !anyAff();
+  }
+  function fillEventForm() {
+    var c = S.config || {};
+    $('ev-data').value = c.data || '';
+    $('ev-valor').value = c.valor || '';
+    $('ev-local').value = c.local || '';
+    $('ev-obs-in').value = c.obs || '';
+    var af = c.afiliados || {};
+    STORE_KEYS.forEach(function (k) { $('af-' + k).value = typeof af[k] === 'string' ? af[k] : ''; });
+  }
+  $('ev-toggle').addEventListener('click', function () {
+    fillEventForm();
+    $('ev-form').hidden = false;
+    $('ev-toggle').hidden = true;
+    $('ev-data').focus();
+  });
+  $('ev-cancel').addEventListener('click', function () {
+    $('ev-form').hidden = true;
+    renderEvent();
+  });
+  $('ev-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (!db) return;
+    var data = {
+      data: $('ev-data').value,
+      valor: $('ev-valor').value.trim(),
+      local: $('ev-local').value.trim(),
+      obs: $('ev-obs-in').value.trim()
+    };
+    var afil = {};
+    var bad = '';
+    STORE_KEYS.forEach(function (k) {
+      var v = $('af-' + k).value.trim().replace(/^[?&]+/, '');
+      if (v && !/^[\w.\-~%+:,\/=&]+$/.test(v)) bad = STORES[k].nome;
+      afil[k] = v;
+    });
+    if (bad) { toast('O código de ' + bad + ' tem caracteres que não funcionam em link. Cole só os parâmetros, como tag=seucodigo-20.'); return; }
+    data.afiliados = afil;
+    write(function () { return db.doc('config/evento').set(data); }, 'Detalhes salvos.');
+    $('ev-form').hidden = true;
+    renderEvent();
+  });
+
+  /* ---------- itens ---------- */
+  function itemNode(it, mine) {
+    var li = document.createElement('li');
+    li.className = 'item';
+    var main = document.createElement('div');
+    main.className = 'item-main';
+    var t = document.createElement('span');
+    t.className = 'item-t';
+    t.textContent = it.titulo || 'Sem título';
+    main.append(t);
+    if (it.obs) {
+      var o = document.createElement('span');
+      o.className = 'item-o';
+      o.textContent = it.obs;
+      main.append(o);
+    }
+    var href = normUrl(it.link);
+    if (href) {
+      var key = it.loja && STORES[it.loja] ? it.loja : detectStore(href);
+      var fin = key ? finalUrl(key, href) : { href: href, tagged: false };
+      var a = document.createElement('a');
+      a.className = 'item-link';
+      a.href = fin.href;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer' + (fin.tagged ? ' sponsored' : '');
+      a.textContent = (key ? 'Ver ' + STORES[key].prep + ' ' + STORES[key].nome : hostOf(href)) + ' ↗';
+      main.append(a);
+    }
+    li.append(main);
+    if (mine) {
+      var act = document.createElement('div');
+      act.className = 'item-actions';
+      var ed = document.createElement('button');
+      ed.type = 'button'; ed.className = 'btn ghost small'; ed.textContent = 'Editar';
+      ed.addEventListener('click', function () { startEdit(it.id); });
+      var rm = document.createElement('button');
+      rm.type = 'button'; rm.className = 'btn ghost small'; rm.textContent = 'Remover';
+      rm.addEventListener('click', function () { removeItem(it.id); });
+      act.append(ed, rm);
+      li.append(act);
+    }
+    return li;
+  }
+
+  function myData() {
+    var cur = S.people.get(S.uid) || { nome: '', itens: [] };
+    return { nome: cur.nome || '', itens: (cur.itens || []).slice() };
+  }
+  function saveMine(next, msg) {
+    next.atualizadoEm = new Date().toISOString();
+    var uid = S.uid;
+    return write(function () { return db.collection('pessoas').doc(uid).set(next); }, msg);
+  }
+  function resetItemForm() {
+    S.editing = null;
+    $('it-titulo').value = '';
+    $('it-link').value = '';
+    $('it-obs').value = '';
+    document.querySelectorAll('input[name="loja"]').forEach(function (r) { r.checked = false; });
+    $('item-h').textContent = 'Novo presente';
+    $('it-submit').textContent = 'Adicionar à lista';
+    $('it-cancel').hidden = true;
+  }
+  function startEdit(id) {
+    var it = myData().itens.filter(function (x) { return x.id === id; })[0];
+    if (!it) return;
+    S.editing = id;
+    $('it-titulo').value = it.titulo || '';
+    $('it-link').value = it.link || '';
+    $('it-obs').value = it.obs || '';
+    var lojaAtual = it.loja || detectStore(normUrl(it.link) || '');
+    document.querySelectorAll('input[name="loja"]').forEach(function (r) { r.checked = r.value === lojaAtual; });
+    $('item-h').textContent = 'Editar presente';
+    $('it-submit').textContent = 'Salvar alteração';
+    $('it-cancel').hidden = false;
+    $('item-form').scrollIntoView({ block: 'nearest' });
+    $('it-titulo').focus();
+  }
+  function removeItem(id) {
+    var d = myData();
+    d.itens = d.itens.filter(function (x) { return x.id !== id; });
+    if (S.editing === id) resetItemForm();
+    saveMine(d, 'Presente removido.');
+  }
+  $('it-cancel').addEventListener('click', resetItemForm);
+  $('it-link').addEventListener('input', function () {
+    var real = detectStore(normUrl($('it-link').value) || '');
+    if (!real) return;
+    var r = document.querySelector('input[name="loja"][value="' + real + '"]');
+    if (r) r.checked = true;
+  });
+  $('item-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (!db || !S.uid) return;
+    var cur = S.people.get(S.uid);
+    var nome = $('nome').value.trim() || (cur && cur.nome) || '';
+    if (!nome) { toast('Digite seu nome antes de adicionar presentes.'); $('nome').focus(); return; }
+    var titulo = $('it-titulo').value.trim();
+    if (!titulo) { toast('Diga o que você quer ganhar.'); $('it-titulo').focus(); return; }
+    var link = normUrl($('it-link').value);
+    if (link === null) { toast('Esse link não parece válido. Cole o endereço completo da loja.'); $('it-link').focus(); return; }
+    var loja = '';
+    if (link) {
+      var chosen = document.querySelector('input[name="loja"]:checked');
+      if (!chosen) { toast('Escolha em qual loja fica esse link.'); document.querySelector('input[name="loja"]').focus(); return; }
+      loja = chosen.value;
+      var real = detectStore(link);
+      if (real !== loja) {
+        toast(real
+          ? 'Esse link é ' + STORES[real].de + ', mas você marcou ' + STORES[loja].nome + '.'
+          : 'Esse link não é ' + STORES[loja].de + '. Cole o endereço do produto na loja que você marcou.');
+        return;
+      }
+    }
+    var obs = $('it-obs').value.trim();
+    var d = myData();
+    d.nome = nome;
+    var idx = S.editing ? d.itens.findIndex(function (x) { return x.id === S.editing; }) : -1;
+    if (idx >= 0) {
+      d.itens[idx] = { id: S.editing, titulo: titulo, link: link, loja: loja, obs: obs };
+    } else {
+      if (d.itens.length >= MAX_ITENS) { toast('Cada lista aceita até ' + MAX_ITENS + ' presentes.'); return; }
+      d.itens.push({ id: newId(), titulo: titulo, link: link, loja: loja, obs: obs });
+    }
+    var editing = idx >= 0;
+    resetItemForm();
+    saveMine(d, editing ? 'Presente atualizado.' : 'Presente adicionado.');
+  });
+
+  /* ---------- nome ---------- */
+  function updateNameBtn() {
+    var me = S.people.get(S.uid);
+    var v = $('nome').value.trim();
+    var btn = $('nome-save');
+    btn.textContent = me ? 'Salvar nome' : 'Entrar na lista';
+    btn.disabled = !v || (!!me && v === (me.nome || ''));
+  }
+  $('nome').addEventListener('input', updateNameBtn);
+  $('nome').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); $('nome-save').click(); }
+  });
+  $('nome-save').addEventListener('click', function () {
+    if (!db || !S.uid) return;
+    var n = $('nome').value.trim();
+    if (!n) { toast('Digite seu nome.'); $('nome').focus(); return; }
+    var d = myData();
+    d.nome = n;
+    saveMine(d, 'Nome salvo.');
+  });
+
+  /* ---------- renderização ---------- */
+  function renderMine() {
+    $('mine-loading').hidden = true;
+    var notice = $('mine-notice'), editor = $('mine-editor');
+    if (!db) { return; }
+    if (S.uid == null) {
+      notice.textContent = 'Para criar a sua lista, entre na sua conta do Claude e abra este link de novo.';
+      notice.hidden = false; editor.hidden = true;
+      return;
+    }
+    if (S.canWrite === false) {
+      notice.textContent = 'Você pode ver as listas, mas ainda não tem permissão para editar. Peça ao organizador para liberar a edição para você.';
+      notice.hidden = false; editor.hidden = true;
+      return;
+    }
+    notice.hidden = true;
+    editor.hidden = false;
+    var me = S.people.get(S.uid);
+    var nome = $('nome');
+    if (me && document.activeElement !== nome) nome.value = me.nome || '';
+    updateNameBtn();
+    var itens = (me && me.itens) || [];
+    var ul = $('mine-items');
+    ul.textContent = '';
+    itens.forEach(function (it) { ul.append(itemNode(it, true)); });
+    $('mine-empty').hidden = itens.length > 0;
+    $('mine-count').textContent = itens.length ? plural(itens.length, 'presente', 'presentes') : '';
+  }
+
+  function personCard(p) {
+    var art = document.createElement('article');
+    art.className = 'card person';
+    var head = document.createElement('div');
+    head.className = 'person-head';
+    var h = document.createElement('h3');
+    h.textContent = p.nome || 'Sem nome';
+    var meta = document.createElement('span');
+    var itens = p.itens || [];
+    meta.className = 'meta';
+    meta.textContent = plural(itens.length, 'presente', 'presentes');
+    head.append(h, meta);
+    art.append(head);
+    if (itens.length) {
+      var ul = document.createElement('ul');
+      ul.className = 'items';
+      itens.forEach(function (it) { ul.append(itemNode(it, false)); });
+      art.append(ul);
+    } else {
+      var em = document.createElement('p');
+      em.className = 'empty';
+      em.textContent = 'Ainda não colocou nada na lista.';
+      art.append(em);
+    }
+    var foot = document.createElement('div');
+    foot.className = 'foot';
+    var when = document.createElement('span');
+    when.textContent = p.atualizadoEm ? 'Atualizada em ' + fmtShort(p.atualizadoEm) : '';
+    foot.append(when);
+    if (S.isOwner) {
+      var rm = document.createElement('button');
+      rm.type = 'button';
+      var asking = S.confirmId === p.id;
+      rm.className = 'btn small ' + (asking ? 'warn' : 'ghost');
+      rm.textContent = asking ? 'Confirmar remoção' : 'Remover pessoa';
+      rm.addEventListener('click', function () {
+        if (S.confirmId !== p.id) { S.confirmId = p.id; renderAll(); return; }
+        S.confirmId = null;
+        write(function () { return db.collection('pessoas').doc(p.id).delete(); }, 'Pessoa removida.');
+      });
+      foot.append(rm);
+    }
+    art.append(foot);
+    return art;
+  }
+
+  function renderAll() {
+    var others = [];
+    S.people.forEach(function (v, id) { if (id !== S.uid) others.push(Object.assign({ id: id }, v)); });
+    others.sort(function (a, b) { return (a.nome || '').localeCompare(b.nome || '', 'pt-BR'); });
+    var me = S.people.get(S.uid);
+    var total = others.length + (me ? 1 : 0);
+    $('count').textContent = total ? plural(total, 'pessoa', 'pessoas') : '';
+    var st = $('all-status');
+    if (!S.loaded && others.length === 0) {
+      st.textContent = 'Carregando as listas…';
+      st.hidden = false;
+    } else if (others.length === 0) {
+      st.textContent = me ? 'Ninguém além de você entrou ainda. Compartilhe o link com o grupo.' : 'Ninguém entrou ainda. Seja a primeira pessoa a montar a lista.';
+      st.hidden = false;
+    } else {
+      st.hidden = true;
+    }
+    var grid = $('all-grid');
+    grid.textContent = '';
+    others.forEach(function (p) { grid.append(personCard(p)); });
+  }
+
+  function render() { renderMine(); renderAll(); }
+
+  /* ---------- inicialização ---------- */
+  function unavailable() {
+    $('mine-loading').hidden = true;
+    var n = $('mine-notice');
+    n.textContent = 'Não foi possível abrir as listas. Entre na sua conta do Claude, abra o link de novo e confira se você recebeu acesso de edição.';
+    n.hidden = false;
+    var st = $('all-status');
+    st.textContent = 'As listas não puderam ser carregadas.';
+    st.hidden = false;
+  }
+
+  (async function init() {
+    try {
+      var c = window.claude;
+      if (!c || !c.use) { unavailable(); return; }
+      var res = await Promise.all([c.use('user'), c.use('db')]);
+      var user = res[0];
+      db = res[1];
+      if (!db) { unavailable(); return; }
+      if (user) {
+        var info = await Promise.all([user.id(), user.can('data.write'), user.canEdit(), user.isOwner()]);
+        S.uid = info[0]; S.canWrite = info[1]; S.isAdmin = info[2]; S.isOwner = info[3];
+      }
+      renderEvent();
+      render();
+
+      var slow = setTimeout(function () {
+        if (!S.loaded) {
+          var st = $('all-status');
+          st.textContent = 'A conexão está demorando. As listas aparecem assim que o servidor responder.';
+          st.hidden = false;
+        }
+      }, 10000);
+
+      db.doc('config/evento').onSnapshot(function (s) {
+        S.config = s.exists ? s.data() : null;
+        renderEvent();
+        render();
+      }, function () {});
+
+      db.collection('pessoas').onSnapshot(function (snap) {
+        var m = new Map();
+        snap.docs.forEach(function (d) { m.set(d.id, d.data()); });
+        S.people = m;
+        if (!snap.metadata.fromCache) { S.loaded = true; clearTimeout(slow); }
+        render();
+      }, function () {
+        clearTimeout(slow);
+        var st = $('all-status');
+        st.textContent = 'Não foi possível carregar as listas agora.';
+        st.hidden = false;
+      });
+    } catch (e) {
+      unavailable();
+    }
+  })();
+})();
+</script>
+
+</body></html>
