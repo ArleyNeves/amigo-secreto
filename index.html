@@ -1,6 +1,10 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Listas do Amigo Secreto</title>
-<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Monte sua lista de presentes do amigo secreto e veja a lista de quem você tirou.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=DM+Sans:wght@400;500;700&display=swap">
@@ -18,6 +22,7 @@
     --focus: #2B5FD9;
     --f-display: 'Bricolage Grotesque', 'Trebuchet MS', system-ui, sans-serif;
     --f-body: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -47,12 +52,15 @@
   }
 
   *, *::before, *::after { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  img { max-width: 100%; }
   body {
     margin: 0;
     background: var(--bg);
     color: var(--ink);
     font: 400 16px/1.5 var(--f-body);
-    padding-block: clamp(20px, 5vw, 48px);
+    padding-top: max(clamp(20px, 5vw, 48px), env(safe-area-inset-top, 0px));
+    padding-bottom: max(clamp(20px, 5vw, 48px), env(safe-area-inset-bottom, 0px));
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
   }
@@ -72,7 +80,7 @@
   .facts dt { font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
   .facts dd { margin: 2px 0 0; font-weight: 600; font-size: 1.05rem; overflow-wrap: anywhere; }
   .facts dd.todo { color: var(--muted); font-weight: 400; }
-  .evobs { margin: 0; color: var(--muted); max-width: 44rem; overflow-wrap: anywhere; }
+  .evobs { margin: 0; color: var(--muted); max-width: 44rem; overflow-wrap: anywhere; white-space: pre-line; }
   .event-actions { display: flex; }
 
   .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: clamp(16px, 3vw, 24px); }
@@ -106,6 +114,11 @@
   .btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
   .btn.small { min-height: 36px; padding: 6px 12px; font-size: .85rem; }
   .btn.warn { background: var(--tint); border-color: var(--accent); color: var(--ink); }
+
+  .acct { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: .9rem; }
+  .acct strong { color: var(--ink); font-weight: 600; overflow-wrap: anywhere; }
+  .signin { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+  .signin p { margin: 0; }
 
   .row-name { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
   .row-name .field { flex: 1 1 14rem; }
@@ -143,7 +156,8 @@
     background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-weight: 600; z-index: 20;
   }
 </style>
-
+</head>
+<body>
 <main class="wrap">
   <header>
     <p class="eyebrow">Lista de presentes</p>
@@ -180,6 +194,15 @@
     <div id="mine-card" class="card">
       <p id="mine-loading" class="status">Abrindo sua lista…</p>
       <div id="mine-notice" class="notice" hidden></div>
+      <div id="signin" class="signin" hidden>
+        <p>Para montar a sua lista, entre com a sua conta Google. Assim só você consegue editar o que pediu.</p>
+        <button id="sign-in" class="btn" type="button">Entrar com Google</button>
+        <p class="hint">Se o login não abrir, copie o link e abra no Chrome ou no Safari. Navegadores de dentro de apps (Instagram, Facebook) costumam bloquear o login do Google.</p>
+      </div>
+      <div id="acct" class="acct" hidden>
+        <span>Conectado como <strong id="acct-who"></strong></span>
+        <button id="sign-out" class="btn ghost small" type="button">Sair</button>
+      </div>
       <div id="mine-editor" hidden>
         <div class="row-name">
           <div class="field"><label for="nome">Seu nome</label><input id="nome" maxlength="40" autocomplete="off" placeholder="Como o pessoal te chama"></div>
@@ -218,12 +241,11 @@
 </main>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-<script>
-(function () {
-  'use strict';
+<script type="module">
+  var FIREBASE_VERSION = '10.12.2';
   var $ = function (id) { return document.getElementById(id); };
-  var S = { uid: null, canWrite: null, isAdmin: false, isOwner: false, people: new Map(), config: null, loaded: false, editing: null, confirmId: null };
-  var db = null;
+  var S = { uid: null, email: '', displayName: '', authReady: false, isAdmin: false, people: new Map(), config: null, loaded: false, editing: null, confirmId: null, prefilled: false };
+  var api = null;   /* preenchido quando o Firebase conecta */
   var chain = Promise.resolve();
   var MAX_ITENS = 30;
 
@@ -303,7 +325,6 @@
     });
     return { href: u.origin + path + '?' + kept.concat([extra]).join('&'), tagged: true };
   }
-  /* END-AFF */
   function fmtDate(s) {
     var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || '');
     if (!m) return s || '';
@@ -317,16 +338,17 @@
   }
   function plural(n, um, varios) { return n + ' ' + (n === 1 ? um : varios); }
 
+  /* Códigos de erro do Firestore */
   function explain(e) {
     var c = e && e.code;
-    if (c === 'invalid_argument') return 'Você não tem permissão para editar aqui. Peça ao organizador para liberar a edição.';
-    if (c === 'quota_exceeded') return 'O limite de dados do site foi atingido. Avise o organizador.';
-    if (c === 'resource_exhausted') return 'Muitas ações seguidas. Espere um instante e tente de novo.';
+    if (c === 'permission-denied') return S.uid ? 'Você não tem permissão para fazer isso.' : 'Entre com sua conta Google para salvar.';
+    if (c === 'resource-exhausted') return 'O limite diário do banco de dados foi atingido. Avise o organizador.';
+    if (c === 'unauthenticated') return 'Sua sessão expirou. Entre de novo com sua conta Google.';
     return 'Não foi possível salvar agora. Tente de novo.';
   }
   function attempt(fn) {
     return fn().catch(function (e) {
-      if (e && e.code === 'unavailable') {
+      if (e && (e.code === 'unavailable' || e.code === 'deadline-exceeded')) {
         return new Promise(function (r) { setTimeout(r, 600 + Math.random() * 600); }).then(fn);
       }
       throw e;
@@ -336,7 +358,7 @@
     chain = chain.then(function () { return attempt(fn); }).then(function () {
       if (okMsg) toast(okMsg);
     }).catch(function (e) {
-      if (e && e.code === 'invalid_argument' && S.canWrite === null) { S.canWrite = false; render(); }
+      console.error(e);
       toast(explain(e));
     });
     return chain;
@@ -358,6 +380,7 @@
     var obs = $('ev-obs');
     obs.textContent = c.obs || '';
     obs.hidden = !c.obs;
+    if (!S.isAdmin) $('ev-form').hidden = true;
     $('ev-toggle').hidden = !S.isAdmin || !$('ev-form').hidden;
     $('aff-note').hidden = !anyAff();
   }
@@ -382,7 +405,7 @@
   });
   $('ev-form').addEventListener('submit', function (e) {
     e.preventDefault();
-    if (!db) return;
+    if (!api || !S.isAdmin) return;
     var data = {
       data: $('ev-data').value,
       valor: $('ev-valor').value.trim(),
@@ -398,7 +421,7 @@
     });
     if (bad) { toast('O código de ' + bad + ' tem caracteres que não funcionam em link. Cole só os parâmetros, como tag=seucodigo-20.'); return; }
     data.afiliados = afil;
-    write(function () { return db.doc('config/evento').set(data); }, 'Detalhes salvos.');
+    write(function () { return api.setEvento(data); }, 'Detalhes salvos.');
     $('ev-form').hidden = true;
     renderEvent();
   });
@@ -454,7 +477,7 @@
   function saveMine(next, msg) {
     next.atualizadoEm = new Date().toISOString();
     var uid = S.uid;
-    return write(function () { return db.collection('pessoas').doc(uid).set(next); }, msg);
+    return write(function () { return api.setPessoa(uid, next); }, msg);
   }
   function resetItemForm() {
     S.editing = null;
@@ -496,7 +519,7 @@
   });
   $('item-form').addEventListener('submit', function (e) {
     e.preventDefault();
-    if (!db || !S.uid) return;
+    if (!api || !S.uid) return;
     var cur = S.people.get(S.uid);
     var nome = $('nome').value.trim() || (cur && cur.nome) || '';
     if (!nome) { toast('Digite seu nome antes de adicionar presentes.'); $('nome').focus(); return; }
@@ -545,7 +568,7 @@
     if (e.key === 'Enter') { e.preventDefault(); $('nome-save').click(); }
   });
   $('nome-save').addEventListener('click', function () {
-    if (!db || !S.uid) return;
+    if (!api || !S.uid) return;
     var n = $('nome').value.trim();
     if (!n) { toast('Digite seu nome.'); $('nome').focus(); return; }
     var d = myData();
@@ -553,26 +576,50 @@
     saveMine(d, 'Nome salvo.');
   });
 
+  /* ---------- login ---------- */
+  $('sign-in').addEventListener('click', function () {
+    if (!api) return;
+    var btn = $('sign-in');
+    btn.disabled = true;
+    api.signIn().catch(function (e) {
+      var c = e && e.code;
+      if (c === 'auth/popup-closed-by-user' || c === 'auth/cancelled-popup-request') return;
+      console.error(e);
+      if (c === 'auth/unauthorized-domain') toast('Este endereço ainda não está autorizado no Firebase. Avise o organizador.');
+      else if (c === 'auth/network-request-failed') toast('Sem conexão. Confira a internet e tente de novo.');
+      else toast('Não foi possível entrar. Tente abrir o link no Chrome ou no Safari.');
+    }).finally(function () { btn.disabled = false; });
+  });
+  $('sign-out').addEventListener('click', function () {
+    if (!api) return;
+    resetItemForm();
+    S.prefilled = false;
+    $('nome').value = '';
+    api.signOut().catch(function () { toast('Não foi possível sair agora.'); });
+  });
+
   /* ---------- renderização ---------- */
   function renderMine() {
+    var notice = $('mine-notice'), editor = $('mine-editor'), signin = $('signin'), acct = $('acct');
+    if (!api || !S.authReady) return;
     $('mine-loading').hidden = true;
-    var notice = $('mine-notice'), editor = $('mine-editor');
-    if (!db) { return; }
-    if (S.uid == null) {
-      notice.textContent = 'Para criar a sua lista, entre na sua conta do Claude e abra este link de novo.';
-      notice.hidden = false; editor.hidden = true;
-      return;
-    }
-    if (S.canWrite === false) {
-      notice.textContent = 'Você pode ver as listas, mas ainda não tem permissão para editar. Peça ao organizador para liberar a edição para você.';
-      notice.hidden = false; editor.hidden = true;
-      return;
-    }
     notice.hidden = true;
+    if (S.uid == null) {
+      signin.hidden = false; acct.hidden = true; editor.hidden = true;
+      $('mine-count').textContent = '';
+      return;
+    }
+    signin.hidden = true;
+    acct.hidden = false;
+    $('acct-who').textContent = S.email || S.displayName || 'sua conta Google';
     editor.hidden = false;
     var me = S.people.get(S.uid);
     var nome = $('nome');
     if (me && document.activeElement !== nome) nome.value = me.nome || '';
+    else if (!me && !S.prefilled && !nome.value && S.displayName && S.loaded) {
+      nome.value = S.displayName.split(' ')[0];
+      S.prefilled = true;
+    }
     updateNameBtn();
     var itens = (me && me.itens) || [];
     var ul = $('mine-items');
@@ -611,7 +658,7 @@
     var when = document.createElement('span');
     when.textContent = p.atualizadoEm ? 'Atualizada em ' + fmtShort(p.atualizadoEm) : '';
     foot.append(when);
-    if (S.isOwner) {
+    if (S.isAdmin) {
       var rm = document.createElement('button');
       rm.type = 'button';
       var asking = S.confirmId === p.id;
@@ -620,7 +667,7 @@
       rm.addEventListener('click', function () {
         if (S.confirmId !== p.id) { S.confirmId = p.id; renderAll(); return; }
         S.confirmId = null;
-        write(function () { return db.collection('pessoas').doc(p.id).delete(); }, 'Pessoa removida.');
+        write(function () { return api.delPessoa(p.id); }, 'Pessoa removida.');
       });
       foot.append(rm);
     }
@@ -653,62 +700,114 @@
   function render() { renderMine(); renderAll(); }
 
   /* ---------- inicialização ---------- */
-  function unavailable() {
+  function unavailable(msg) {
     $('mine-loading').hidden = true;
+    $('signin').hidden = true;
     var n = $('mine-notice');
-    n.textContent = 'Não foi possível abrir as listas. Entre na sua conta do Claude, abra o link de novo e confira se você recebeu acesso de edição.';
+    n.textContent = msg || 'Não foi possível conectar ao banco de dados. Confira a internet e recarregue a página.';
     n.hidden = false;
     var st = $('all-status');
     st.textContent = 'As listas não puderam ser carregadas.';
     st.hidden = false;
   }
 
-  (async function init() {
+  async function init() {
+    var cfg;
     try {
-      var c = window.claude;
-      if (!c || !c.use) { unavailable(); return; }
-      var res = await Promise.all([c.use('user'), c.use('db')]);
-      var user = res[0];
-      db = res[1];
-      if (!db) { unavailable(); return; }
-      if (user) {
-        var info = await Promise.all([user.id(), user.can('data.write'), user.canEdit(), user.isOwner()]);
-        S.uid = info[0]; S.canWrite = info[1]; S.isAdmin = info[2]; S.isOwner = info[3];
-      }
+      cfg = await import('./firebase-config.js');
+    } catch (e) {
+      unavailable('Falta o arquivo firebase-config.js. Veja o passo a passo no README do repositório.');
+      return;
+    }
+    var conf = cfg.firebaseConfig;
+    if (!conf || !conf.apiKey || /COLE|SUA_/i.test(conf.apiKey)) {
+      unavailable('O site ainda não foi ligado ao Firebase. O organizador precisa preencher o arquivo firebase-config.js (veja o README).');
+      return;
+    }
+    var admins = (cfg.ORGANIZADORES || []).map(function (s) { return String(s).trim().toLowerCase(); });
+
+    var fbApp, fbAuth, fbStore;
+    try {
+      var base = 'https://www.gstatic.com/firebasejs/' + FIREBASE_VERSION + '/';
+      var mods = await Promise.all([
+        import(base + 'firebase-app.js'),
+        import(base + 'firebase-auth.js'),
+        import(base + 'firebase-firestore.js')
+      ]);
+      fbApp = mods[0]; fbAuth = mods[1]; fbStore = mods[2];
+    } catch (e) {
+      console.error(e);
+      unavailable();
+      return;
+    }
+
+    var app = fbApp.initializeApp(conf);
+    var auth = fbAuth.getAuth(app);
+    auth.languageCode = 'pt-BR';
+    var fs = fbStore.getFirestore(app);
+    var provider = new fbAuth.GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+
+    api = {
+      setEvento: function (data) { return fbStore.setDoc(fbStore.doc(fs, 'config', 'evento'), data); },
+      setPessoa: function (uid, data) { return fbStore.setDoc(fbStore.doc(fs, 'pessoas', uid), data); },
+      delPessoa: function (uid) { return fbStore.deleteDoc(fbStore.doc(fs, 'pessoas', uid)); },
+      signIn: function () {
+        return fbAuth.signInWithPopup(auth, provider).catch(function (e) {
+          if (e && (e.code === 'auth/popup-blocked' || e.code === 'auth/operation-not-supported-in-this-environment')) {
+            return fbAuth.signInWithRedirect(auth, provider);
+          }
+          throw e;
+        });
+      },
+      signOut: function () { return fbAuth.signOut(auth); }
+    };
+
+    fbAuth.onAuthStateChanged(auth, function (user) {
+      var prev = S.uid;
+      S.uid = user ? user.uid : null;
+      S.email = user && user.email ? user.email : '';
+      S.displayName = user && user.displayName ? user.displayName : '';
+      S.isAdmin = !!(user && user.email && user.emailVerified && admins.indexOf(user.email.toLowerCase()) >= 0);
+      S.authReady = true;
+      if (prev !== S.uid) { S.confirmId = null; resetItemForm(); }
       renderEvent();
       render();
+    });
 
-      var slow = setTimeout(function () {
-        if (!S.loaded) {
-          var st = $('all-status');
-          st.textContent = 'A conexão está demorando. As listas aparecem assim que o servidor responder.';
-          st.hidden = false;
-        }
-      }, 10000);
-
-      db.doc('config/evento').onSnapshot(function (s) {
-        S.config = s.exists ? s.data() : null;
-        renderEvent();
-        render();
-      }, function () {});
-
-      db.collection('pessoas').onSnapshot(function (snap) {
-        var m = new Map();
-        snap.docs.forEach(function (d) { m.set(d.id, d.data()); });
-        S.people = m;
-        if (!snap.metadata.fromCache) { S.loaded = true; clearTimeout(slow); }
-        render();
-      }, function () {
-        clearTimeout(slow);
+    var slow = setTimeout(function () {
+      if (!S.loaded) {
         var st = $('all-status');
-        st.textContent = 'Não foi possível carregar as listas agora.';
+        st.textContent = 'A conexão está demorando. As listas aparecem assim que o servidor responder.';
         st.hidden = false;
-      });
-    } catch (e) {
-      unavailable();
-    }
-  })();
-})();
-</script>
+      }
+    }, 10000);
 
-</body></html>
+    fbStore.onSnapshot(fbStore.doc(fs, 'config', 'evento'), function (s) {
+      S.config = s.exists() ? s.data() : null;
+      renderEvent();
+      render();
+    }, function (e) { console.error(e); });
+
+    fbStore.onSnapshot(fbStore.collection(fs, 'pessoas'), function (snap) {
+      var m = new Map();
+      snap.docs.forEach(function (d) { m.set(d.id, d.data()); });
+      S.people = m;
+      if (!snap.metadata.fromCache) { S.loaded = true; clearTimeout(slow); }
+      render();
+    }, function (e) {
+      console.error(e);
+      clearTimeout(slow);
+      var st = $('all-status');
+      st.textContent = e && e.code === 'permission-denied'
+        ? 'O banco de dados recusou a leitura. O organizador precisa publicar as regras do arquivo firestore.rules.'
+        : 'Não foi possível carregar as listas agora.';
+      st.hidden = false;
+    });
+  }
+
+  renderEvent();
+  init().catch(function (e) { console.error(e); unavailable(); });
+</script>
+</body>
+</html>
