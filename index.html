@@ -134,6 +134,7 @@
   .item-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .thumb { flex-shrink: 0; width: 64px; height: 64px; border-radius: 10px; border: 1px solid var(--line); background: #fff; overflow: hidden; display: block; }
   .thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .item-note { color: var(--muted); font-size: .82rem; background: var(--tint); border-radius: 6px; padding: 2px 8px; margin-top: 4px; align-self: flex-start; }
   .item-wait { color: var(--muted); font-size: .85rem; font-style: italic; }
   .item-t { font-weight: 700; overflow-wrap: anywhere; }
   .item-o { color: var(--muted); font-size: .92rem; overflow-wrap: anywhere; }
@@ -150,7 +151,14 @@
 
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); gap: 16px; align-items: start; }
   .person { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-  .person-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .person-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .avatar { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; background: var(--tint); color: var(--accent); font: 700 1rem var(--f-display); overflow: hidden; text-transform: uppercase; }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .avatar.lg { width: 72px; height: 72px; font-size: 1.6rem; }
+  .avatar-row { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+  .avatar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  label.btn { display: inline-flex; align-items: center; }
   .person-head h3 { overflow-wrap: anywhere; }
   .meta { color: var(--muted); font-size: .85rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .person .items { margin-top: 0; }
@@ -222,6 +230,14 @@
         <button id="sign-out" class="btn ghost small" type="button">Sair</button>
       </div>
       <div id="mine-editor" hidden>
+        <div class="avatar-row">
+          <span id="my-avatar" class="avatar lg" aria-hidden="true"></span>
+          <div class="avatar-actions">
+            <label id="foto-btn" class="btn ghost small" for="foto-in">Escolher foto de perfil</label>
+            <input id="foto-in" class="sr" type="file" accept="image/*">
+            <button id="foto-rm" class="btn ghost small" type="button" hidden>Remover foto</button>
+          </div>
+        </div>
         <div class="row-name">
           <div class="field"><label for="nome">Seu nome</label><input id="nome" maxlength="40" autocomplete="off" placeholder="Como o pessoal te chama"></div>
           <button id="nome-save" class="btn" type="button">Entrar na lista</button>
@@ -231,7 +247,7 @@
         <form id="item-form" class="formgrid">
           <h3 id="item-h">Novo presente</h3>
           <div class="field wide"><label for="it-titulo">O que você quer ganhar</label><input id="it-titulo" maxlength="80" autocomplete="off" placeholder="Ex.: caneca térmica, livro, meia"></div>
-          <div class="field wide"><label for="it-link">Link do produto (opcional)</label><input id="it-link" type="text" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="500" placeholder="Cole o endereço do produto"><p class="hint">Aceitamos Mercado Livre, Amazon, Shopee e Shein. Links curtos de compartilhamento abrem normalmente, mas não levam o código de afiliado.</p></div>
+          <div class="field wide"><label for="it-link">Link do produto (opcional)</label><input id="it-link" type="text" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="500" placeholder="Cole o endereço do produto"><p class="hint">Mercado Livre, Amazon, Shopee e Shein levam o código de afiliado. Link de outra loja também vale: marque <strong>Outro</strong>. Links curtos de compartilhamento abrem normalmente, mas não levam o código.</p></div>
           <div class="field wide"><label for="it-img">Imagem do produto (opcional)</label><input id="it-img" type="text" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="1000" placeholder="Deixe em branco para buscar sozinho"><p class="hint">O site tenta pegar a foto do anúncio sozinho. Se não aparecer, segure o dedo (ou clique com o botão direito) na foto do anúncio, escolha "Copiar endereço da imagem" e cole aqui.</p></div>
           <fieldset class="wide" id="it-loja">
             <legend>Em qual loja fica esse link?</legend>
@@ -240,7 +256,9 @@
               <label class="chip"><input type="radio" name="loja" value="amazon"><span>Amazon</span></label>
               <label class="chip"><input type="radio" name="loja" value="shopee"><span>Shopee</span></label>
               <label class="chip"><input type="radio" name="loja" value="shein"><span>Shein</span></label>
+              <label class="chip"><input type="radio" name="loja" value="outro"><span>Outro</span></label>
             </div>
+            <p id="outro-hint" class="hint" style="margin-top:8px" hidden></p>
           </fieldset>
           <div class="field wide"><label for="it-obs">Detalhes (opcional)</label><input id="it-obs" maxlength="160" autocomplete="off" placeholder="Tamanho, cor, modelo"></div>
           <div class="form-actions">
@@ -263,7 +281,7 @@
 <script type="module">
   var FIREBASE_VERSION = '10.12.2';
   var $ = function (id) { return document.getElementById(id); };
-  var S = { uid: null, email: '', displayName: '', authReady: false, isAdmin: false, people: new Map(), config: null, loaded: false, editing: null, confirmId: null, prefilled: false, affDefault: {}, fetching: new Set() };
+  var S = { uid: null, email: '', displayName: '', authReady: false, isAdmin: false, people: new Map(), config: null, loaded: false, editing: null, confirmId: null, prefilled: false, affDefault: {}, fetching: new Set(), affName: '', viewImg: {}, backfilled: new Set() };
   var api = null;   /* preenchido quando o Firebase conecta */
   var PSEUDO_DOMAIN = '';
   var chain = Promise.resolve();
@@ -301,7 +319,9 @@
     shopee: { nome: 'Shopee', prep: 'na', de: 'da Shopee', hosts: ['shopee.com.br'], short: ['shope.ee', 's.shopee.com.br'] },
     shein: { nome: 'Shein', prep: 'na', de: 'da Shein', hosts: ['shein.com', 'shein.com.br'], short: ['shein.top'] }
   };
+  STORES.outro = { nome: 'Outro', prep: 'em', de: 'de outra loja', hosts: [], short: [] };
   var STORE_KEYS = ['mercadolivre', 'amazon', 'shopee', 'shein'];
+  function noComissao() { return 'Nota: Esse link não gera comissão pra ' + (S.affName || 'o organizador') + '.'; }
   function hostIn(host, list) {
     return list.some(function (h) { return host === h || host.endsWith('.' + h); });
   }
@@ -403,6 +423,7 @@
     obs.hidden = !c.obs;
     if (!S.isAdmin) $('ev-form').hidden = true;
     $('ev-toggle').hidden = !S.isAdmin || !$('ev-form').hidden;
+    if (S.affName) $('aff-note').textContent = 'Os links de loja usam o código de afiliado de ' + S.affName + '. Se você comprar por eles, ' + S.affName + ' recebe uma comissão e o preço não muda para você.';
     $('aff-note').hidden = !anyAff();
   }
   function fillEventForm() {
@@ -477,12 +498,18 @@
       a.href = fin.href;
       a.target = '_blank';
       a.rel = 'noopener noreferrer' + (fin.tagged ? ' sponsored' : '');
-      a.textContent = (key ? 'Ver ' + STORES[key].prep + ' ' + STORES[key].nome : hostOf(href)) + ' ↗';
+      a.textContent = (key && key !== 'outro' ? 'Ver ' + STORES[key].prep + ' ' + STORES[key].nome : 'Ver em ' + hostOf(href)) + ' ↗';
       main.append(a);
+      if (!key || key === 'outro') {
+        var nt = document.createElement('span');
+        nt.className = 'item-note';
+        nt.textContent = noComissao();
+        main.append(nt);
+      }
     }
     var body = document.createElement('div');
     body.className = 'item-body';
-    var img = normImg(it.img);
+    var img = normImg(it.img) || (href ? viewImg(it, href, key, mine) : '');
     if (img) {
       var th = document.createElement(href ? 'a' : 'span');
       th.className = 'thumb';
@@ -518,7 +545,9 @@
 
   function myData() {
     var cur = S.people.get(S.uid) || { nome: '', itens: [] };
-    return { nome: cur.nome || '', itens: (cur.itens || []).slice() };
+    var d = { nome: cur.nome || '', itens: (cur.itens || []).slice() };
+    if (typeof cur.foto === 'string' && cur.foto) d.foto = cur.foto;
+    return d;
   }
   function saveMine(next, msg) {
     next.atualizadoEm = new Date().toISOString();
@@ -535,6 +564,7 @@
     $('item-h').textContent = 'Novo presente';
     $('it-submit').textContent = 'Adicionar à lista';
     $('it-cancel').hidden = true;
+    updateOutroHint();
   }
   function startEdit(id) {
     var it = myData().itens.filter(function (x) { return x.id === id; })[0];
@@ -549,6 +579,7 @@
     $('item-h').textContent = 'Editar presente';
     $('it-submit').textContent = 'Salvar alteração';
     $('it-cancel').hidden = false;
+    updateOutroHint();
     $('item-form').scrollIntoView({ block: 'nearest' });
     $('it-titulo').focus();
   }
@@ -560,11 +591,21 @@
   }
   $('it-cancel').addEventListener('click', resetItemForm);
   $('it-link').addEventListener('input', function () {
-    var real = detectStore(normUrl($('it-link').value) || '');
+    var h = normUrl($('it-link').value);
+    var real = detectStore(h || '');
+    if (!real && h && /\.[a-z]{2,}(\/|$)/i.test(new URL(h).hostname + '/')) real = 'outro';
     if (!real) return;
     var r = document.querySelector('input[name="loja"][value="' + real + '"]');
     if (r) r.checked = true;
+    updateOutroHint();
   });
+  function updateOutroHint() {
+    var c = document.querySelector('input[name="loja"]:checked');
+    var el = $('outro-hint');
+    el.textContent = 'Links de outras lojas aparecem na lista com a observação: "' + noComissao() + '"';
+    el.hidden = !(c && c.value === 'outro');
+  }
+  document.querySelectorAll('input[name="loja"]').forEach(function (r) { r.addEventListener('change', updateOutroHint); });
   $('item-form').addEventListener('submit', function (e) {
     e.preventDefault();
     if (!api || !S.uid) return;
@@ -581,10 +622,12 @@
       if (!chosen) { toast('Escolha em qual loja fica esse link.'); document.querySelector('input[name="loja"]').focus(); return; }
       loja = chosen.value;
       var real = detectStore(link);
-      if (real !== loja) {
+      if (loja === 'outro') {
+        if (real) { toast('Esse link é ' + STORES[real].de + '. Marque ' + STORES[real].nome + ' para ele levar o código de afiliado.'); return; }
+      } else if (real !== loja) {
         toast(real
           ? 'Esse link é ' + STORES[real].de + ', mas você marcou ' + STORES[loja].nome + '.'
-          : 'Esse link não é ' + STORES[loja].de + '. Cole o endereço do produto na loja que você marcou.');
+          : 'Esse link não é ' + STORES[loja].de + '. Se for de outra loja, marque Outro.');
         return;
       }
     }
@@ -656,25 +699,120 @@
     if (u && await probeImg(u)) return u;
     return '';
   }
+  /* Cache no navegador: imagem achada vale 30 dias; "não achei" vale 1 dia */
+  var DIA = 864e5, inflight = {};
+  function cacheGet(link) {
+    try {
+      var v = JSON.parse(localStorage.getItem('img:' + link) || 'null');
+      if (v && Date.now() - v.t < (v.u ? 30 * DIA : DIA)) return v;
+    } catch (e) {}
+    return null;
+  }
+  function cacheSet(link, u) {
+    try { localStorage.setItem('img:' + link, JSON.stringify({ u: u, t: Date.now() })); } catch (e) {}
+  }
+  function cachedFind(link, loja, fresh) {
+    var c = fresh ? null : cacheGet(link);
+    if (c) return Promise.resolve(c.u);
+    if (inflight[link]) return inflight[link];
+    inflight[link] = findImage(link, loja).then(function (u) { cacheSet(link, u); delete inflight[link]; return u; });
+    return inflight[link];
+  }
+  /* grava a imagem no presente, se ele ainda existe, com o mesmo link e sem imagem */
+  function persistImg(uid, id, link, img) {
+    if (!img || S.uid !== uid) return false;
+    var d = myData();
+    var it = d.itens.filter(function (x) { return x.id === id; })[0];
+    if (!it || it.link !== link || it.img) return false;
+    it.img = img;
+    saveMine(d);
+    return true;
+  }
   function autoImage(id, link, loja) {
     var uid = S.uid;
     S.fetching.add(id);
     renderMine();
-    findImage(link, loja).then(function (img) {
+    cachedFind(link, loja, true).then(function (img) {
       S.fetching.delete(id);
-      if (S.uid !== uid) return;
-      var d = myData();
-      var it = d.itens.filter(function (x) { return x.id === id; })[0];
-      /* só grava se o presente ainda existe, com o mesmo link e sem imagem */
-      if (!img || !it || it.link !== link || it.img) {
-        renderMine();
-        if (!img && it && it.link === link && !it.img) toast('Não achei a foto do anúncio. Você pode colar o endereço da imagem em Editar.');
-        return;
-      }
-      it.img = img;
-      saveMine(d);
+      if (persistImg(uid, id, link, img)) return;
+      renderMine();
+      var it = myData().itens.filter(function (x) { return x.id === id; })[0];
+      if (!img && it && it.link === link && !it.img) toast('Não achei a foto do anúncio. Você pode colar o endereço da imagem em Editar.');
     });
   }
+  /* Presente sem imagem salva: busca para exibir (na lista dos outros) e, se for meu, grava */
+  function viewImg(it, href, key, mine) {
+    if (href in S.viewImg) return S.viewImg[href];
+    S.viewImg[href] = '';
+    var uid = S.uid, id = it.id, link = it.link;
+    cachedFind(href, key).then(function (u) {
+      S.viewImg[href] = u || '';
+      if (mine && u) persistImg(uid, id, link, u);
+      if (u) render();
+    });
+    return '';
+  }
+
+  /* ---------- foto de perfil ---------- */
+  function avatarNode(nome, foto, big) {
+    var sp = document.createElement('span');
+    sp.className = 'avatar' + (big ? ' lg' : '');
+    if (big) sp.id = 'my-avatar';
+    sp.setAttribute('aria-hidden', 'true');
+    if (typeof foto === 'string' && /^data:image\/jpeg;base64,/.test(foto)) {
+      var im = document.createElement('img');
+      im.src = foto; im.alt = '';
+      sp.append(im);
+    } else {
+      var n = (nome || '').trim();
+      sp.textContent = n ? Array.from(n)[0] : '?';
+    }
+    return sp;
+  }
+  /* Recorta no centro em quadrado e reduz para 192 px; fica com ~10–25 KB e cabe no próprio documento */
+  function shrinkPhoto(file) {
+    return new Promise(function (res, rej) {
+      var url = URL.createObjectURL(file);
+      var im = new Image();
+      im.onload = function () {
+        URL.revokeObjectURL(url);
+        var side = Math.min(im.naturalWidth, im.naturalHeight);
+        if (!side) return rej(new Error('vazia'));
+        var c = document.createElement('canvas');
+        c.width = c.height = 192;
+        var ctx = c.getContext('2d');
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, 192, 192);
+        ctx.drawImage(im, (im.naturalWidth - side) / 2, (im.naturalHeight - side) / 2, side, side, 0, 0, 192, 192);
+        var q = 0.85, out = c.toDataURL('image/jpeg', q);
+        while (out.length > 55000 && q > 0.4) { q -= 0.1; out = c.toDataURL('image/jpeg', q); }
+        out.length <= 55000 ? res(out) : rej(new Error('grande'));
+      };
+      im.onerror = function () { URL.revokeObjectURL(url); rej(new Error('formato')); };
+      im.src = url;
+    });
+  }
+  $('foto-in').addEventListener('change', function () {
+    var f = this.files && this.files[0];
+    this.value = '';
+    if (!f || !api || !S.uid) return;
+    if (!/^image\//.test(f.type)) { toast('Escolha um arquivo de imagem.'); return; }
+    var d = myData();
+    d.nome = $('nome').value.trim() || d.nome;
+    if (!d.nome) { toast('Digite seu nome antes de escolher a foto.'); $('nome').focus(); return; }
+    shrinkPhoto(f).then(function (foto) {
+      d.foto = foto;
+      saveMine(d, 'Foto salva.');
+    }).catch(function () {
+      toast('Não consegui abrir essa imagem. Tente uma foto em JPG ou PNG.');
+    });
+  });
+  $('foto-rm').addEventListener('click', function () {
+    if (!api || !S.uid) return;
+    var d = myData();
+    delete d.foto;
+    saveMine(d, 'Foto removida.');
+  });
 
   /* ---------- nome ---------- */
   function updateNameBtn() {
@@ -684,7 +822,11 @@
     btn.textContent = me ? 'Salvar nome' : 'Entrar na lista';
     btn.disabled = !v || (!!me && v === (me.nome || ''));
   }
-  $('nome').addEventListener('input', updateNameBtn);
+  $('nome').addEventListener('input', function () {
+    updateNameBtn();
+    var me = S.people.get(S.uid);
+    if (!(me && me.foto)) $('my-avatar').replaceWith(avatarNode($('nome').value, '', true));
+  });
   $('nome').addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); $('nome-save').click(); }
   });
@@ -779,6 +921,10 @@
       S.prefilled = true;
     }
     updateNameBtn();
+    var av = $('my-avatar');
+    av.replaceWith(avatarNode(nome.value || (me && me.nome) || S.displayName, me && me.foto, true));
+    $('foto-rm').hidden = !(me && me.foto);
+    $('foto-btn').textContent = me && me.foto ? 'Trocar foto' : 'Escolher foto de perfil';
     var itens = (me && me.itens) || [];
     var ul = $('mine-items');
     ul.textContent = '';
@@ -798,7 +944,10 @@
     var itens = p.itens || [];
     meta.className = 'meta';
     meta.textContent = plural(itens.length, 'presente', 'presentes');
-    head.append(h, meta);
+    var who = document.createElement('div');
+    who.className = 'who';
+    who.append(avatarNode(p.nome, p.foto, false), h);
+    head.append(who, meta);
     art.append(head);
     if (itens.length) {
       var ul = document.createElement('ul');
@@ -883,6 +1032,7 @@
       return;
     }
     S.affDefault = cfg.AFILIADOS || {};
+    S.affName = typeof cfg.NOME_AFILIADO === 'string' ? cfg.NOME_AFILIADO.trim() : '';
     PSEUDO_DOMAIN = 'apelido.' + (conf.authDomain || (conf.projectId + '.firebaseapp.com'));
     renderEvent();
     var admins = (cfg.ORGANIZADORES || []).map(function (s) { return String(s).trim().toLowerCase(); });

@@ -29,3 +29,6 @@ export const AFILIADOS = {
   shopee: "mmp_pid=an_18395711048&utm_source=an_18395711048&utm_medium=affiliates&utm_campaign=id_84KnqIoS2qn",
   shein: "url_from=affiliate_koc_1236316901&campaign_id=20"
 };
+
+// Nome de quem recebe a comissão dos links de afiliado (aparece nos avisos do site).
+export const NOME_AFILIADO = "Taissa";

@@ -43,7 +43,11 @@ service cloud.firestore {
       allow read: if true;
       allow create, update: if signedIn()
         && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['nome', 'itens', 'atualizadoEm'])
+        && request.resource.data.keys().hasOnly(['nome', 'itens', 'atualizadoEm', 'foto'])
+        && (!('foto' in request.resource.data)
+            || (request.resource.data.foto is string
+                && request.resource.data.foto.size() <= 60000
+                && request.resource.data.foto.matches('data:image/jpeg;base64,[A-Za-z0-9+/=]+')))
         && request.resource.data.nome is string
         && request.resource.data.nome.size() > 0
         && request.resource.data.nome.size() <= 40
