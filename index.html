@@ -177,7 +177,7 @@
       <div class="field wide"><label for="ev-local">Local</label><input id="ev-local" maxlength="80" autocomplete="off" placeholder="Onde e a que horas"></div>
       <div class="field wide"><label for="ev-obs-in">Combinados</label><textarea id="ev-obs-in" maxlength="300" placeholder="Regras do grupo, prazo para comprar, como entregar"></textarea></div>
       <h3>Códigos de afiliado</h3>
-      <p class="hint wide">Cole só os parâmetros do seu link de afiliado em cada loja, sem o endereço do produto (por exemplo, tag=seucodigo-20 na Amazon). Loja em branco: o link segue sem código.</p>
+      <p class="hint wide">Cole só os parâmetros do seu link de afiliado em cada loja, sem o endereço do produto (por exemplo, tag=seucodigo-20 na Amazon). Loja em branco: vale o código padrão do arquivo firebase-config.js.</p>
       <div class="field"><label for="af-mercadolivre">Mercado Livre</label><input id="af-mercadolivre" maxlength="200" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="parâmetros do link"></div>
       <div class="field"><label for="af-amazon">Amazon</label><input id="af-amazon" maxlength="200" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="tag=seucodigo-20"></div>
       <div class="field"><label for="af-shopee">Shopee</label><input id="af-shopee" maxlength="200" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="parâmetros do link"></div>
@@ -244,7 +244,7 @@
 <script type="module">
   var FIREBASE_VERSION = '10.12.2';
   var $ = function (id) { return document.getElementById(id); };
-  var S = { uid: null, email: '', displayName: '', authReady: false, isAdmin: false, people: new Map(), config: null, loaded: false, editing: null, confirmId: null, prefilled: false };
+  var S = { uid: null, email: '', displayName: '', authReady: false, isAdmin: false, people: new Map(), config: null, loaded: false, editing: null, confirmId: null, prefilled: false, affDefault: {} };
   var api = null;   /* preenchido quando o Firebase conecta */
   var chain = Promise.resolve();
   var MAX_ITENS = 30;
@@ -276,9 +276,9 @@
     try { return new URL(href).hostname.replace(/^www\./, ''); } catch (e) { return 'link'; }
   }
   var STORES = {
-    mercadolivre: { nome: 'Mercado Livre', prep: 'no', de: 'do Mercado Livre', hosts: ['mercadolivre.com.br', 'mercadolivre.com'], short: ['meli.la'], keep: ['variation'] },
+    mercadolivre: { nome: 'Mercado Livre', prep: 'no', de: 'do Mercado Livre', hosts: ['mercadolivre.com.br', 'mercadolivre.com'], short: ['meli.la'], keep: ['variation', 'pdp_filters'] },
     amazon: { nome: 'Amazon', prep: 'na', de: 'da Amazon', hosts: ['amazon.com.br'], short: ['amzn.to', 'a.co'] },
-    shopee: { nome: 'Shopee', prep: 'na', de: 'da Shopee', hosts: ['shopee.com.br'], short: ['shope.ee'] },
+    shopee: { nome: 'Shopee', prep: 'na', de: 'da Shopee', hosts: ['shopee.com.br'], short: ['shope.ee', 's.shopee.com.br'] },
     shein: { nome: 'Shein', prep: 'na', de: 'da Shein', hosts: ['shein.com', 'shein.com.br'], short: ['shein.top'] }
   };
   var STORE_KEYS = ['mercadolivre', 'amazon', 'shopee', 'shein'];
@@ -301,8 +301,9 @@
   }
   function affParams(key) {
     var a = S.config && S.config.afiliados;
-    var v = a && typeof a[key] === 'string' ? a[key] : '';
-    return v.trim().replace(/^[?&]+/, '');
+    var v = a && typeof a[key] === 'string' ? a[key].trim() : '';
+    if (!v && typeof S.affDefault[key] === 'string') v = S.affDefault[key].trim();
+    return v.replace(/^[?&]+/, '');
   }
   function anyAff() {
     return STORE_KEYS.some(function (k) { return !!affParams(k); });
@@ -714,7 +715,7 @@
   async function init() {
     var cfg;
     try {
-      cfg = await import('./firebase-config.js');
+      cfg = await import('./firebase-config.js?v=' + Date.now());
     } catch (e) {
       unavailable('Falta o arquivo firebase-config.js. Veja o passo a passo no README do repositório.');
       return;
@@ -724,6 +725,8 @@
       unavailable('O site ainda não foi ligado ao Firebase. O organizador precisa preencher o arquivo firebase-config.js (veja o README).');
       return;
     }
+    S.affDefault = cfg.AFILIADOS || {};
+    renderEvent();
     var admins = (cfg.ORGANIZADORES || []).map(function (s) { return String(s).trim().toLowerCase(); });
 
     var fbApp, fbAuth, fbStore;

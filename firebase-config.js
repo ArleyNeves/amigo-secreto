@@ -19,3 +19,13 @@ export const firebaseConfig = {
 export const ORGANIZADORES = [
   "arleyneves.an@gmail.com"
 ];
+
+// Códigos de afiliado padrão de cada loja (só os parâmetros, sem o endereço do produto).
+// Todo link de produto colado no site recebe esses parâmetros no lugar dos que vieram junto.
+// O que for salvo em "Editar detalhes" no site tem prioridade sobre estes.
+export const AFILIADOS = {
+  amazon: "tag=promosdatk03-20",
+  mercadolivre: "matt_word=tk20260419103856&matt_tool=36990436",
+  shopee: "mmp_pid=an_18395711048&utm_source=an_18395711048&utm_medium=affiliates&utm_campaign=id_84KnqIoS2qn",
+  shein: "url_from=affiliate_koc_1236316901&campaign_id=20"
+};
