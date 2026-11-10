@@ -4,12 +4,13 @@
 // Essas chaves podem ficar públicas: quem protege os dados são as regras do firestore.rules.
 
 export const firebaseConfig = {
-  apiKey: "COLE_AQUI_SUA_API_KEY",
-  authDomain: "SEU-PROJETO.firebaseapp.com",
-  projectId: "SEU-PROJETO",
-  storageBucket: "SEU-PROJETO.appspot.com",
-  messagingSenderId: "000000000000",
-  appId: "1:000000000000:web:0000000000000000"
+  apiKey: "AIzaSyDype6PZFD6ZX9rRQOLXjEBK5kxSmuoB9Q",
+  authDomain: "amigo-secreto-c92ea.firebaseapp.com",
+  projectId: "amigo-secreto-c92ea",
+  storageBucket: "amigo-secreto-c92ea.firebasestorage.app",
+  messagingSenderId: "693115078543",
+  appId: "1:693115078543:web:c35791cf01306d326aadfa",
+  measurementId: "G-C6BVFTRR8N"
 };
 
 // E-mails Google de quem organiza: podem editar data, valor, local, combinados,
