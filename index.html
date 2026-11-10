@@ -119,6 +119,10 @@
   .acct strong { color: var(--ink); font-weight: 600; overflow-wrap: anywhere; }
   .signin { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
   .signin p { margin: 0; }
+  .signin form { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 26rem; }
+  .signin .row-btns { display: flex; gap: 10px; flex-wrap: wrap; }
+  .or { display: flex; align-items: center; gap: 10px; width: 100%; max-width: 26rem; color: var(--muted); font-size: .85rem; }
+  .or::before, .or::after { content: ''; flex: 1; border-top: 1px solid var(--line); }
 
   .row-name { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
   .row-name .field { flex: 1 1 14rem; }
@@ -195,9 +199,19 @@
       <p id="mine-loading" class="status">Abrindo sua lista…</p>
       <div id="mine-notice" class="notice" hidden></div>
       <div id="signin" class="signin" hidden>
-        <p>Para montar a sua lista, entre com a sua conta Google. Assim só você consegue editar o que pediu.</p>
-        <button id="sign-in" class="btn" type="button">Entrar com Google</button>
-        <p class="hint">Se o login não abrir, copie o link e abra no Chrome ou no Safari. Navegadores de dentro de apps (Instagram, Facebook) costumam bloquear o login do Google.</p>
+        <p>Para montar a sua lista, entre com um apelido e uma senha. Assim só você consegue editar o que pediu.</p>
+        <form id="pw-form" novalidate>
+          <div class="field"><label for="pw-user">Apelido</label><input id="pw-user" maxlength="20" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Ex.: tia.rosa"></div>
+          <div class="field"><label for="pw-pass">Senha</label><input id="pw-pass" type="password" maxlength="64" autocomplete="current-password" placeholder="Pelo menos 6 caracteres"></div>
+          <div class="row-btns">
+            <button id="pw-login" class="btn" type="submit">Entrar</button>
+            <button id="pw-create" class="btn ghost" type="button">Criar conta</button>
+          </div>
+          <p class="hint">Primeira vez aqui? Escolha um apelido e uma senha e toque em <strong>Criar conta</strong>. Guarde a senha: se esquecer, só o organizador consegue liberar uma conta nova.</p>
+        </form>
+        <div class="or">ou</div>
+        <button id="sign-in" class="btn ghost" type="button">Entrar com Google</button>
+        <p class="hint">O login do Google pode não abrir em navegadores de dentro de apps (Instagram, Facebook). Nesse caso, use apelido e senha ou abra o link no Chrome ou no Safari.</p>
       </div>
       <div id="acct" class="acct" hidden>
         <span>Conectado como <strong id="acct-who"></strong></span>
@@ -246,6 +260,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var S = { uid: null, email: '', displayName: '', authReady: false, isAdmin: false, people: new Map(), config: null, loaded: false, editing: null, confirmId: null, prefilled: false, affDefault: {} };
   var api = null;   /* preenchido quando o Firebase conecta */
+  var PSEUDO_DOMAIN = '';
   var chain = Promise.resolve();
   var MAX_ITENS = 30;
 
@@ -591,6 +606,43 @@
       else toast('Não foi possível entrar. Tente abrir o link no Chrome ou no Safari.');
     }).finally(function () { btn.disabled = false; });
   });
+  /* Apelido vira um e-mail interno (nunca recebe mensagens), só para o Firebase identificar a conta */
+  function normApelido(raw) {
+    return (raw || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '.');
+  }
+  function apelidoOf(email) {
+    var suf = '@' + PSEUDO_DOMAIN;
+    return email && PSEUDO_DOMAIN && email.slice(-suf.length) === suf ? email.slice(0, -suf.length) : '';
+  }
+  function pwSubmit(criar) {
+    if (!api) return;
+    var raw = $('pw-user').value.trim();
+    var ap = normApelido(raw);
+    var senha = $('pw-pass').value;
+    if (!ap) { toast('Digite um apelido.'); $('pw-user').focus(); return; }
+    if (!/^[a-z0-9][a-z0-9._-]{2,19}$/.test(ap)) { toast('O apelido precisa ter de 3 a 20 caracteres: letras, números, ponto, hífen ou sublinhado.'); $('pw-user').focus(); return; }
+    if (senha.length < 6) { toast('A senha precisa ter pelo menos 6 caracteres.'); $('pw-pass').focus(); return; }
+    var btns = [$('pw-login'), $('pw-create')];
+    btns.forEach(function (b) { b.disabled = true; });
+    S.pendingName = raw;
+    (criar ? api.signUp(ap, senha, raw) : api.signInPw(ap, senha)).then(function () {
+      $('pw-pass').value = '';
+      if (criar) toast('Conta criada. Agora monte a sua lista.');
+    }).catch(function (e) {
+      var c = e && e.code;
+      console.error(e);
+      if (c === 'auth/email-already-in-use') toast('Esse apelido já está em uso. Se é seu, toque em Entrar; se não, escolha outro.');
+      else if (c === 'auth/invalid-credential' || c === 'auth/wrong-password' || c === 'auth/user-not-found' || c === 'auth/invalid-login-credentials') toast('Apelido ou senha incorretos. Primeira vez aqui? Toque em Criar conta.');
+      else if (c === 'auth/weak-password') toast('Senha fraca. Use pelo menos 6 caracteres.');
+      else if (c === 'auth/too-many-requests') toast('Muitas tentativas. Espere alguns minutos e tente de novo.');
+      else if (c === 'auth/operation-not-allowed') toast('O login por senha ainda não foi ativado. Avise o organizador.');
+      else if (c === 'auth/network-request-failed') toast('Sem conexão. Confira a internet e tente de novo.');
+      else toast('Não foi possível entrar agora. Tente de novo.');
+    }).finally(function () { btns.forEach(function (b) { b.disabled = false; }); });
+  }
+  $('pw-form').addEventListener('submit', function (e) { e.preventDefault(); pwSubmit(false); });
+  $('pw-create').addEventListener('click', function () { pwSubmit(true); });
+
   $('sign-out').addEventListener('click', function () {
     if (!api) return;
     resetItemForm();
@@ -612,7 +664,7 @@
     }
     signin.hidden = true;
     acct.hidden = false;
-    $('acct-who').textContent = S.email || S.displayName || 'sua conta Google';
+    $('acct-who').textContent = apelidoOf(S.email) || S.email || S.displayName || 'sua conta';
     editor.hidden = false;
     var me = S.people.get(S.uid);
     var nome = $('nome');
@@ -726,6 +778,7 @@
       return;
     }
     S.affDefault = cfg.AFILIADOS || {};
+    PSEUDO_DOMAIN = 'apelido.' + (conf.authDomain || (conf.projectId + '.firebaseapp.com'));
     renderEvent();
     var admins = (cfg.ORGANIZADORES || []).map(function (s) { return String(s).trim().toLowerCase(); });
 
@@ -763,6 +816,17 @@
           throw e;
         });
       },
+      signInPw: function (ap, senha) {
+        return fbAuth.signInWithEmailAndPassword(auth, ap + '@' + PSEUDO_DOMAIN, senha);
+      },
+      signUp: function (ap, senha, nome) {
+        return fbAuth.createUserWithEmailAndPassword(auth, ap + '@' + PSEUDO_DOMAIN, senha).then(function (cred) {
+          return fbAuth.updateProfile(cred.user, { displayName: nome }).catch(function () {});
+        }).then(function () {
+          S.displayName = nome;
+          render();
+        });
+      },
       signOut: function () { return fbAuth.signOut(auth); }
     };
 
@@ -770,7 +834,7 @@
       var prev = S.uid;
       S.uid = user ? user.uid : null;
       S.email = user && user.email ? user.email : '';
-      S.displayName = user && user.displayName ? user.displayName : '';
+      S.displayName = user ? (user.displayName || (apelidoOf(user.email) && S.pendingName) || apelidoOf(user.email) || '') : '';
       S.isAdmin = !!(user && user.email && user.emailVerified && admins.indexOf(user.email.toLowerCase()) >= 0);
       S.authReady = true;
       if (prev !== S.uid) { S.confirmId = null; resetItemForm(); }

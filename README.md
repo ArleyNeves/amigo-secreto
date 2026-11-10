@@ -4,7 +4,7 @@ Site de lista de presentes para amigo secreto. Cada participante entra com a con
 
 ## Funcionalidades
 
-- Login com Google: cada pessoa só edita a própria lista
+- Login com apelido e senha (sem precisar de e-mail) ou com Google: cada pessoa só edita a própria lista
 - Lista pessoal com até 30 presentes, com link, loja e detalhes como tamanho e cor
 - Grade com as listas de todos os participantes, atualizada em tempo real
 - Detalhes do evento: data da revelação, valor sugerido, local e combinados (só o organizador edita)
@@ -26,11 +26,12 @@ Site de lista de presentes para amigo secreto. Cada participante entra com a con
 2. Na página do projeto, clique no ícone **`</>`** (Web) para adicionar um app. Dê um nome, sem marcar Firebase Hosting.
 3. Copie o objeto `firebaseConfig` que aparece e cole no `firebase-config.js`, no lugar dos valores de exemplo.
 
-### 2. Ativar o login com Google
+### 2. Ativar o login
 
-1. Menu **Criação > Authentication > Vamos começar**.
+1. Menu **Segurança > Authentication > Vamos começar**.
 2. Aba **Método de login > Google > Ativar**. Escolha o e-mail de suporte e salve.
-3. Aba **Configurações > Domínios autorizados > Adicionar domínio**: `arleyneves.github.io`
+3. Aba **Método de login > Adicionar novo provedor > E-mail/senha > Ativar** (deixe "Link do e-mail" desativado) e salve. É o que permite o login por apelido e senha.
+4. Aba **Configurações > Domínios autorizados > Adicionar domínio**: `arleyneves.github.io`
 
 ### 3. Criar o banco de dados
 
@@ -65,8 +66,17 @@ python -m http.server 8000
 
 E abra http://localhost:8000. O `localhost` já vem autorizado no Firebase.
 
+## Convidado esqueceu a senha
+
+O apelido vira um e-mail interno (`apelido@apelido.amigo-secreto-c92ea.firebaseapp.com`) que não recebe mensagens, então não há "esqueci minha senha". Para liberar o apelido de novo:
+
+1. No console: **Authentication > Usuários**, procure o apelido e, no menu **⋮**, clique em **Excluir conta**.
+2. No site, entre como organizador e clique em **Remover pessoa** no cartão antigo dessa pessoa.
+3. A pessoa cria a conta de novo com o mesmo apelido e refaz a lista.
+
 ## Limites e privacidade
 
 - O plano gratuito do Firestore permite 50 mil leituras e 20 mil gravações por dia, muito mais do que um grupo de amigo secreto usa.
 - Qualquer pessoa com o link vê as listas e os nomes. Para editar, é preciso entrar com Google.
 - O e-mail de quem entra não é salvo no banco; só o nome digitado e a lista.
+- Contas de apelido e senha nunca viram organizador: só contas Google listadas em `ORGANIZADORES` têm esse acesso.
